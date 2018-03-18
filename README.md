@@ -9,7 +9,8 @@ contents:
 
 ```INI
 [jissues]
-server = <<JIRA server's URL>>
-user = <<username>>
-password = <<password>>
-project_prefix = <<JIRA project's prefix>>```
+server = JIRA server's URL
+user = username
+password = password
+project_prefix = JIRA project's prefix
+```
