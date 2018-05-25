@@ -5,6 +5,30 @@ import os.path
 
 from jira import JIRA
 
+class JiraConnector:
+    """Interface to JIRA issues"""
+    def __init__(self, server, user, password, project_prefix):
+        # Prepare to connect to JIRA API.
+        options = {'server': server}
+        self.jira = JIRA(options, basic_auth=(user, password))
+        self.project_prefix = project_prefix
+
+    def get_issues(self):
+        size = 100
+        bunch = 0
+        while True:
+            # Read issues from JIRA in bunches of 'size' issues each time.
+            start = bunch*size
+            issues = self.jira.search_issues(
+                'project=' + self.project_prefix + ' '
+                'and issuetype=Story '
+                'ORDER BY key ASC', start, size)
+            if len(issues) == 0:
+                break
+            bunch += 1
+            for issue in issues:
+                print(issue, ': ', issue.fields.summary, sep="")
+
 # Read the configuration file.
 config = configparser.ConfigParser()
 config.read(os.path.join(os.path.expanduser('~'), '.jissues'))
@@ -15,19 +39,5 @@ user = conf_values['user']
 password = conf_values['password']
 project_prefix = conf_values['project_prefix']
 
-# Prepare to connecto to JIRA API.
-options = {'server': server}
-jira = JIRA(options, basic_auth=(user, password))
-
-size = 100
-initial = 0
-while True:
-    start = initial*size
-    issues = jira.search_issues('project=' + project_prefix + ' '
-                                'and issuetype=Story '
-                                'ORDER BY key ASC', start, size)
-    if len(issues) == 0:
-        break
-    initial += 1
-    for issue in issues:
-        print(issue, ': ', issue.fields.summary, sep="")
+jira_connector = JiraConnector(server, user, password, project_prefix)
+jira_connector.get_issues()
