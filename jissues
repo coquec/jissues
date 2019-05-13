@@ -2,8 +2,38 @@
 
 import configparser
 import os.path
+import re
 
 from jira import JIRA
+
+class AsciidocConnector:
+    """Interface to AsciiDoc issues"""
+    def __init__(self, filename):
+        try:
+            self.source_file = open(filename)
+            get_header()
+
+    def get_header(self):
+        """Retrieve AsciiDoc header"""
+        print '<header>'
+        while True:
+            pos = source_file.tell()
+            self.source_file.readline(line)
+            is_issue = match_issue_tittle(line)
+
+            if is_issue:
+                source_file.seek(pos)
+                break
+            elif not line.strip():
+                break
+            else:
+                print line
+        print '</header>'
+
+    # def get_issues(self):
+
+    def match_issue_title(self, line):
+        return re.match("^([A-Za-z]+-[0-9]+:)[ ]-[ ](.*)", line)
 
 class JiraConnector:
     """Interface to JIRA issues"""
