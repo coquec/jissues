@@ -4,39 +4,52 @@ import configparser
 import os.path
 import re
 
+import clize
+
 from jira import JIRA
 
+
 class AsciidocConnector:
-    """Interface to AsciiDoc issues"""
-    def __init__(self, filename):
-        try:
-            self.source_file = open(filename)
-            get_header()
+    """Interface to AsciiDoc issues."""
+    # Expected formats.
+    issue_title_in = r'^== (?P<project_prefix>[A-Za-z])+-' \
+        + '(?P<issue>[0-9]+:):[ ]+(P<tittle>.+)$'
+    issue_title_out = r'== %s-%s: %s'
+    
+    def __init__(self, filename, project_prefix):
+        self.source_file = open(filename)
+        self.project_prefix = project_prefix
 
     def get_header(self):
-        """Retrieve AsciiDoc header"""
-        print '<header>'
+        """Retrieve AsciiDoc header."""
+        print('<header>')
         while True:
-            pos = source_file.tell()
-            self.source_file.readline(line)
-            is_issue = match_issue_tittle(line)
+            pos = self.source_file.tell()
+            line = self.source_file.readline()
+            is_issue = self.match_issue_title(line)
 
             if is_issue:
-                source_file.seek(pos)
+                self.source_file.seek(pos)
                 break
             elif not line.strip():
                 break
             else:
-                print line
-        print '</header>'
+                print(line, end = '')
+        print('</header>')
 
     # def get_issues(self):
 
     def match_issue_title(self, line):
-        return re.match("^([A-Za-z]+-[0-9]+:)[ ]-[ ](.*)", line)
+        match =  re.match(AsciidocConnector.issue_title_in, line)
+        if (match and match.group("project_prefix") != self.project_prefix):
+            raise Exception('Invalid project prefix! {} should ' \
+                            + 'be {}'.format(match.group("project_prefix"),
+                                             self.project_prefix))
+        return match
 
+    
 class JiraConnector:
-    """Interface to JIRA issues"""
+    """Interface to JIRA issues."""
     def __init__(self, server, user, password, project_prefix):
         # Prepare to connect to JIRA API.
         options = {'server': server}
@@ -59,15 +72,39 @@ class JiraConnector:
             for issue in issues:
                 print(issue, ': ', issue.fields.summary, sep="")
 
-# Read the configuration file.
-config = configparser.ConfigParser()
-config.read(os.path.join(os.path.expanduser('~'), '.jissues'))
+                
+def build_jira_connector(config_file):
+    """Build a connector to interact with JIRA.
 
-conf_values = config['jissues']
-server = conf_values['server']
-user = conf_values['user']
-password = conf_values['password']
-project_prefix = conf_values['project_prefix']
+    Uses the the parameters found in the config file specified by
+    config_file.
+    """
+    # Read the configuration file.
+    config = configparser.ConfigParser()
+    config.read(config_file)
 
-jira_connector = JiraConnector(server, user, password, project_prefix)
-jira_connector.get_issues()
+    conf_values = config['jissues']
+    server = conf_values['server']
+    user = conf_values['user']
+    password = conf_values['password']
+    project_prefix = conf_values['project_prefix']
+
+    return JiraConnector(server, user, password, project_prefix)
+
+
+def jissues(from_file, project_prefix):
+    """Read issues from file.
+
+    :param from_file: AsciiDoc file with the issues.
+    :param project_prefix: project prefix.
+    """
+
+    adoc_connector = AsciidocConnector(from_file, project_prefix)
+    adoc_connector.get_header()
+    
+    # jira_connector = build_jira_connector(
+    #     os.path.join(os.path.expanduser('~'), '.jissues'))
+
+    # jira_connector.get_issues()
+
+clize.run(jissues)
