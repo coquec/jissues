@@ -12,42 +12,74 @@ from jira import JIRA
 class AsciidocConnector:
     """Interface to AsciiDoc issues."""
     # Expected formats.
-    issue_title_in = r'^== (?P<project_prefix>[A-Za-z])+-' \
-        + '(?P<issue>[0-9]+:):[ ]+(P<tittle>.+)$'
+    issue_title_in = r'^= (?P<project_prefix>[A-Za-z]+)-' \
+        + '(?P<issue>[0-9]+):[ ]+(?P<tittle>.+)$'
     issue_title_out = r'== %s-%s: %s'
-    
+
     def __init__(self, filename, project_prefix):
         self.source_file = open(filename)
         self.project_prefix = project_prefix
 
-    def get_header(self):
-        """Retrieve AsciiDoc header."""
-        print('<header>')
+    def get_preface(self):
+        """Retrieve AsciiDoc preface.
+
+        Retrieves everyting which comes before the first issue, as
+        defined by the regex issue_tittle_in, includying the AsciiDoc
+        header.
+        """
+        print('<preface>')
         while True:
             pos = self.source_file.tell()
             line = self.source_file.readline()
+
+            if not line:
+                break
+
             is_issue = self.match_issue_title(line)
 
             if is_issue:
                 self.source_file.seek(pos)
                 break
-            elif not line.strip():
-                break
             else:
                 print(line, end = '')
-        print('</header>')
+        print('</preface>')
 
-    # def get_issues(self):
+    def get_issues(self):
+        """Retrieve AsciiDoc issues."""
+        empty_lines = self.get_empty_lines()
+
+    def get_empty_lines(self):
+        result = 0
+        while True:
+            pos = self.source_file.tell()
+            line = self.source_file.readline()
+
+            if not line:
+                break
+
+            if line.strip():
+                self.source_file.seek(pos)
+                break
+            else:
+                result += 1
+
+        if result:
+            print('<empty_lines>')
+            for i in range(result):
+                print('')
+            print('</empty_lines>')
+
+        return result
 
     def match_issue_title(self, line):
         match =  re.match(AsciidocConnector.issue_title_in, line)
         if (match and match.group("project_prefix") != self.project_prefix):
-            raise Exception('Invalid project prefix! {} should ' \
-                            + 'be {}'.format(match.group("project_prefix"),
-                                             self.project_prefix))
+            raise Exception(('Invalid project prefix! {} should ' \
+                             + 'be {}').format(match.group("project_prefix"),
+                                               self.project_prefix))
         return match
 
-    
+
 class JiraConnector:
     """Interface to JIRA issues."""
     def __init__(self, server, user, password, project_prefix):
@@ -72,7 +104,7 @@ class JiraConnector:
             for issue in issues:
                 print(issue, ': ', issue.fields.summary, sep="")
 
-                
+
 def build_jira_connector(config_file):
     """Build a connector to interact with JIRA.
 
@@ -92,19 +124,21 @@ def build_jira_connector(config_file):
     return JiraConnector(server, user, password, project_prefix)
 
 
-def jissues(from_file, project_prefix):
+def jissues(project_prefix, from_file):
     """Read issues from file.
 
-    :param from_file: AsciiDoc file with the issues.
     :param project_prefix: project prefix.
+    :param from_file: AsciiDoc file with the issues.
     """
 
     adoc_connector = AsciidocConnector(from_file, project_prefix)
-    adoc_connector.get_header()
-    
+    adoc_connector.get_preface()
+    adoc_connector.get_issues()
+
     # jira_connector = build_jira_connector(
     #     os.path.join(os.path.expanduser('~'), '.jissues'))
 
     # jira_connector.get_issues()
 
-clize.run(jissues)
+if __name__ == '__main__':
+    clize.run(jissues)
