@@ -1,5 +1,6 @@
 #!/usr/bin/env python3
 
+from abc import ABC, abstractmethod
 import configparser
 import os.path
 import re
@@ -9,11 +10,27 @@ import clize
 from jira import JIRA
 
 
+class IssueProxy(ABC):
+    """Proxy to different issues implementations (abstract)."""
+    def __init__(self):
+        super().__init__()
+
+    @abstractmethod
+    def id(self):
+        """Return issue's ID, in the PREFIX-NUMBER format."""
+        pass
+
+    @abstractmethod
+    def title(self):
+        """Return issue's title."""
+        pass
+
+
 class AsciidocConnector:
     """Interface to AsciiDoc issues."""
     # Expected formats.
     issue_title_in = r'^= (?P<project_prefix>[A-Za-z]+)-' \
-        + '(?P<issue>[0-9]+):[ ]+(?P<tittle>.+)$'
+        + '(?P<issue>[0-9]+):[ ]+(?P<title>.+)$'
     issue_title_out = r'== %s-%s: %s'
 
     def __init__(self, filename, project_prefix):
@@ -24,7 +41,7 @@ class AsciidocConnector:
         """Retrieve AsciiDoc preface.
 
         Retrieves everyting which comes before the first issue, as
-        defined by the regex issue_tittle_in, includying the AsciiDoc
+        defined by the regex issue_title_in, includying the AsciiDoc
         header.
         """
         print('<preface>')
@@ -41,8 +58,22 @@ class AsciidocConnector:
                 self.source_file.seek(pos)
                 break
             else:
-                print(line, end = '')
+                print(line, end='')
         print('</preface>')
+
+    def get_issue(self):
+        line = self.source_file.readline()
+
+        if line:
+            i = self.match_issue_title(line)
+            if i:
+                print("<issue id='{}-{}' title='{}'>"
+                      .format(i.group("project_prefix"),
+                              i.group("issue"),
+                              i.group("title")))
+            else:
+                raise Exception('Unknown line format: {}'.format(line))
+
 
     def get_issues(self):
         """Retrieve AsciiDoc issues."""
